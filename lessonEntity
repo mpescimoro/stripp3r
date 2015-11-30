@@ -17,7 +17,7 @@ db_name = "testDatabase"
 ## Database user
 db_uid = "root"
 ## Database user's password
-db_passwd = "dbabg47atde"
+db_passwd = ""
 ## Database host
 db_host = "localhost"
 ##
