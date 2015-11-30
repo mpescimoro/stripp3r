@@ -23,6 +23,7 @@ from urllib.request import urlopen
 import datetime
 import time
 import locale
+# external libraries
 import requests
 from lessonEntity import Lesson
 from bs4 import BeautifulSoup # html5 smart parser
@@ -51,6 +52,8 @@ class MLStripper(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == 'table':
             for attr in attrs:
+                if attr[0] == 'class' and attr[1] == 'cellTabs':
+                    break
                 if attr[0] == 'id':
                     self.immolation = True
                     # Hours coded from 0 to 9 as the nine hours avalaible in a standard lesson day from 08:30 to 09:30
@@ -62,7 +65,7 @@ class MLStripper(HTMLParser):
                     self.lesson.hour = dt.time()
                     # print(self.lesson.hour) #DEBUG
                     # print(coords) #DEBUG
-        if tag == 'td':
+        elif tag == 'td':
             for attr in attrs:
                 # find the header with the information regarding the semester
                 if attr[1] == 'ttTitleTD':
@@ -75,30 +78,40 @@ class MLStripper(HTMLParser):
             self.immolation = False
 
     def handle_data(self, data):
+        # print('tag '+data) #DEBUG
         if self.is_header > 0:
             self.is_header += 1
             # print('Pippo '+str(self.is_header)) # DEBUG
-        if self.immolation and data.strip():
+        data = data.strip()
+        # needed to manage multiple teacher lines
+        is_append = False
+        if self.immolation:
             # count the 4 lines of data for the lesson (subject, teacher, rooms, address)
             if self.dataLine <= 3:
                 # pass #DEBUG
+                if data == '/':
+                    self.dataLine -= 1
+                    is_append = True
                 if self.dataLine == 0:
-                    self.lesson.subject = data
+                    self.lesson.subject = data.upper()
                     print(self.lesson.subject) #DEBUG
                 if self.dataLine == 1:
-                    self.lesson.teacher = data
+                    self.lesson.teacher = self.lesson.teacher+data.upper()
+                    if is_append == True:
+                        self.dataLine -=1
+                        is_append = False
                     print(self.lesson.teacher) #DEBUG
                 if self.dataLine == 2:
-                    self.lesson.rooms = data
+                    self.lesson.rooms = data.upper()
                     print(self.lesson.rooms) #DEBUG
                 if self.dataLine == 3:
-                    self.lesson.address = data
+                    self.lesson.address = data.upper()
                     print(self.lesson.address) #DEBUG
                 # print(data.upper())  # DEBUG
                 self.dataLine += 1
             # if is the last line
             if self.dataLine == 4:
-                print("---------------------------------------")  # DEBUG
+                print("--")  # DEBUG
                 self.lesson.semesterStartDate = self.semesterStartDate
                 self.lesson.semesterEndDate = self.semesterEndDate
                 self.dataLine = 0
@@ -126,14 +139,15 @@ html_doc = requests.get(url+'index.html')
 
 htmlSoup = BeautifulSoup(html_doc.text, 'html.parser')
 courses = []
+parser = MLStripper()
 # find all the links to the courses calendar from the menu of the index page.
 for link in htmlSoup.find_all('a'):
     if link.get('href').find('Curricula', 0, 10) == 0:
         courses.append(url+link.get('href'))
 for calendar in courses:
     fetch = urlopen(calendar)
-    parser = MLStripper()
     data = fetch.read().decode('iso-8859-1')  # Welcome back to 1987!
+    # data = data.replace(' / ', ' ')
     parser.feed(data)  # OM NOM NOM
     parser.close()
 

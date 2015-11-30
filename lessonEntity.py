@@ -45,7 +45,7 @@ class Lesson(Base):
     teacher = Column(VARCHAR(50))
 
     def __init__(self):
-        pass
+        self.teacher = ''
 
     # persist the entity into the database
     def persist(self):
